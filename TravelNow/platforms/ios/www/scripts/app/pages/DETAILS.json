@@ -1,0 +1,9 @@
+{
+    contents : { },
+    pageComposition : {
+        template : "app.templates.DetailsLayout"
+    },
+    pageId : "DETAILS",
+    url : "/details",
+    title : "Travel Now | Details"
+}

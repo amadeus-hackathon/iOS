@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+		
+		<script src="js/WebviewPlugin.js"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/thack.css" />
+		<link href="css/_all.css" rel="stylesheet">
+	
+		<script type="text/javascript" src="scripts/aria/ariatemplates-1.4.12.js"></script>
+		<script src="js/modernizr.custom.17475.js"></script>
+		<script src="js/jquery.js"></script>
+		<script src="js/jquery.icheck.min.js"></script>
+		<script type="text/javascript" src="js/iscroll.js"></script>
+		<script src="js/staticdata.js"></script>
+	
+        <title>Travel Now</title>
+		
+		<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+		<!-- cordova -->
+		<script src="cordova.js"></script>
+	    <!-- cordova facebook plugin -->
+		<script src="js/cdv-plugin-fb-connect.js"></script>
+	    <!-- facebook js sdk -->
+		<script src="js/facebook-js-sdk.js"></script>
+				
+    </head>
+    <body>
+		
+		<div id="layout"></div>
+
+		<div id="fb-root"></div>
+
+		<br></br>
+		
+		<script type="text/javascript" src="phonegap.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+		
+        <script type="text/javascript">
+
+			app.initialize();
+
+			aria.core.AppEnvironment.setEnvironment({
+													defaultWidgetLibs : {
+													"aria" : "aria.widgets.AriaLib",
+													"embed" : "aria.embed.EmbedLib"
+													}
+													});
+										
+			var pageEngine;
+			
+			Aria.load({
+					  classes: ["aria.pageEngine.PageEngine", "aria.pageEngine.pageProviders.BasePageProvider"],
+					  oncomplete: function() {
+					  pageEngine = new aria.pageEngine.PageEngine();
+					  pageEngine.start({
+									   pageProvider : new aria.pageEngine.pageProviders.BasePageProvider({
+																										 siteConfigLocation : "app/site.json",
+																										 pageBaseLocation : "app/pages/",
+																										 homePageId : "HOME"
+																										 })
+									   });
+					  }
+					  });
+
+        </script>
+		
+		<div id="log"></div>
+
+    </body>
+</html>

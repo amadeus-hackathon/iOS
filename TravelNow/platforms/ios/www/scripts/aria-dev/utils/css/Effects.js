@@ -1,0 +1,329 @@
+/*
+ * Aria Templates 1.4.12 - 07 Nov 2013
+ *
+ * Copyright 2009-2013 Amadeus s.a.s.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+(function () {
+
+    function round (value) {
+        return Math.round(value * 100) / 100;
+    }
+
+    /**
+     * Utilities for HTML object animations. To add a new animation you need to call the
+     * aria.utils.css.Effects.animate() method passing:
+     *
+     * <pre>
+     * - the HTML element or its ID
+     * - an object containing the style (and some non-style) properties to be animated with their values. e.g. {height : 40, width: &quot;90em&quot;, opacity: 0.4}
+     * - [optional] a configuration object that contains some additional animation information:
+     *      cfg {
+     *          duration : {Number} the animation duration in milliseconds [optional],
+     *          interval : {Number} the interval between an animation interpolation and the following one [optional],
+     *          easing : {String|Function} the interpolation function used to compute the animated property value for each iteration [optional],
+     *          queue : {Boolean|String} true to put the animation into the global animations queue, a user defined id, to add the animation to the queue represented by that string. Default is false (the animation will begin immediately)[optional],
+     *          onStartAnimation : {Function} callback function fired when an animation starts [optional],
+     *          onEndAnimation : {Function} callback function fired when an animation ends [optional]
+     *          onStartQueue : {Function} callback function fired when an animations queue starts [optional]
+     *          onEndQueue : {Function} callback function fired when an animations queue ends [optional]
+     *      }
+     * </pre>
+     */
+    Aria.classDefinition({
+        $classpath : "aria.utils.css.Effects",
+        $dependencies : ["aria.utils.css.Units", "aria.utils.css.PropertiesConfig"],
+        $singleton : true,
+        $statics : {
+            // animation interval in ms
+            DEFAULT_INTERVAL : 20,
+            DEFAULT_DURATION : 1000,
+            DEFAULT_EASING : "linear",
+            DEFAULT_QUEUE_KEY : "default",
+            NO_PROPERTY_TO_ANIMATE : "No valid property to animate.",
+
+            __easing : {
+                "linear" : function (x) {
+                    return x;
+                },
+                "ease-in-out" : function (x) {
+                    // 0 < curveCutPoint < infinity
+                    var curveCutPoint = 3;
+                    return (Math.atan(2 * curveCutPoint * x - curveCutPoint) + Math.atan(curveCutPoint))
+                            / (2 * Math.atan(curveCutPoint));
+                },
+                "ease-out" : function (x) {
+                    // 0 < curveCutPoint < infinity
+                    var curveCutPoint = 3;
+                    return Math.atan(curveCutPoint * x) / Math.atan(curveCutPoint);
+                },
+                "ease-in" : function (x) {
+                    // 0 < curveCutPoint < PI/2
+                    var curveCutPoint = 1.3;
+                    return Math.tan(curveCutPoint * x) / Math.tan(curveCutPoint);
+                }
+            },
+
+            _computeInterpolation : function (easing, startValue, endValue, start, end, current) {
+                var sx = start, ex = end, sy = startValue, ey = endValue, x = current;
+                var animProgress = (x - sx) / (ex - sx);
+                var range = ey - sy;
+                var y = sy + easing(animProgress) * range;
+                return round(y);
+            }
+
+        },
+        $constructor : function () {
+
+            this.cfg = aria.utils.css.PropertiesConfig;
+            this.unitUtil = aria.utils.css.Units;
+            this.queues = {};
+            this.animations = {};
+            this.animCount = 0;
+
+            // detect dpi
+            var domElement = Aria.$window.document.createElement("div");
+            domElement.style.cssText = "height: 1in; left: -100%; position: absolute; top: -100%; width: 1in;";
+            domElement.id = "dpiDetectionTest";
+            Aria.$window.document.body.appendChild(domElement);
+            this.dpi = {
+                x : Aria.$window.document.getElementById('dpiDetectionTest').offsetWidth,
+                y : Aria.$window.document.getElementById('dpiDetectionTest').offsetHeight
+            };
+            Aria.$window.document.body.removeChild(domElement);
+            // end detection dpi
+
+        },
+        $prototype : {
+
+            /**
+             * Starts the animation
+             * @param {HTMLElement | String} element to be animated (or its id)
+             * @param {Object} CSS properties
+             * @param {Object} cfg animation configuration
+             */
+            animate : function (htmlElem, properties, cfg) {
+                var idTiming;
+                cfg = cfg || {};
+                var elem = htmlElem, animInfo = {
+                    props : []
+                };
+
+                if (!aria.utils.Type.isHTMLElement(htmlElem)) {
+                    elem = aria.utils.Dom.getElementById(htmlElem);
+                }
+
+                animInfo.duration = cfg.duration ? parseInt(cfg.duration, 10) : this.DEFAULT_DURATION;
+                animInfo.interval = cfg.interval ? parseInt(cfg.interval, 10) : this.DEFAULT_INTERVAL;
+                if (cfg.easing != null) {
+                    if (aria.utils.Type.isFunction(cfg.easing)) {
+                        animInfo.easing = cfg.easing;
+                    } else if (aria.utils.Type.isString(cfg.easing)) {
+                        animInfo.easing = this.__easing[cfg.easing];
+                    }
+                }
+                animInfo.easing = animInfo.easing || this.__easing[this.DEFAULT_EASING];
+                animInfo.queue = (cfg.queue === true) ? this.DEFAULT_QUEUE_KEY : (cfg.queue != null)
+                        ? this.__getQueueKey(cfg.queue)
+                        : false;
+                animInfo.element = elem;
+                animInfo.userProperties = properties;
+                animInfo.onStartAnimation = cfg.onStartAnimation;
+                animInfo.onEndAnimation = cfg.onEndAnimation;
+                animInfo.onEndQueue = cfg.onEndQueue;
+
+                if (animInfo.queue) {
+                    // if it is the first animation of its queue
+                    if (!this.queues[animInfo.queue]) {
+                        this.queues[animInfo.queue] = {
+                            list : [animInfo],
+                            onEndQueue : cfg.onEndQueue
+                        };
+                        this.$callback(cfg.onStartQueue);
+                        idTiming = this._createAndLaunchAnimation(elem, animInfo);
+                    } else {
+                        idTiming = this._createAnimationSpot();
+                        this.queues[animInfo.queue].list.push(animInfo);
+                    }
+                } else {
+                    idTiming = this._createAndLaunchAnimation(elem, animInfo);
+                }
+                animInfo.idTiming = idTiming;
+
+                return idTiming;
+            },
+
+            _createAnimationSpot : function (htmlElem, properties, cfg) {
+                return (++this.animCount % 1000000000000000);
+            },
+
+            _createAndLaunchAnimation : function (elem, animInfo) {
+                return this._launchAnimation(elem, animInfo, this._createAnimationSpot());
+            },
+
+            _launchAnimation : function (elem, animInfo, idTiming) {
+                var PROPS = this.cfg.PROPERTIES;
+                this.$callback(animInfo.onStartAnimation);
+                animInfo.start = (new Date()).getTime();
+                animInfo.end = animInfo.start + animInfo.duration;
+
+                for (var prop in animInfo.userProperties) {
+                    if (animInfo.userProperties.hasOwnProperty(prop)) {
+                        var currentValueNum, relativeOperator, unit, valueNum, currentValue, currentUnit, value;
+
+                        value = animInfo.userProperties[prop] + "";
+
+                        relativeOperator = value.match(/^[\+\-]/);
+                        unit = this.__getUnit(value, prop);
+                        valueNum = parseFloat(value);
+
+                        currentValue = this.__getProperty(elem, prop);
+                        currentUnit = this.__getUnit(currentValue, prop);
+                        currentValueNum = parseFloat(currentValue) || 0;
+
+                        if (aria.utils.Type.isNumber(valueNum) && aria.utils.Type.isNumber(currentValueNum)
+                                && (prop in PROPS && !(PROPS[prop].percentNotAdmitted && unit == "%"))) {
+                            // detect if the property has multiple components (ex. margin-left, margin-right...) and
+                            // explode it if different values are set
+                            var explodedProps = [];
+                            var explode = false;
+                            if (PROPS[prop].orientation == this.cfg.COMPOSITE && PROPS[prop].subProperties != null) {
+                                var tmpValue;
+                                for (var i = 0, l = PROPS[prop].subProperties.length; i < l; i++) {
+                                    var currProp = PROPS[prop].subProperties[i];
+                                    var currentCompValue = this.__getProperty(elem, currProp);
+                                    var currentCompUnit = this.__getUnit(currentCompValue, currProp);
+                                    var currentCompValueNum = parseFloat(currentCompValue) || 0;
+                                    explodedProps.push({
+                                        prop : currProp,
+                                        currentValueNum : currentCompValueNum,
+                                        currentUnit : currentCompUnit
+                                    });
+                                    if (i > 0 && currentCompValue != tmpValue) {
+                                        explode = true;
+                                    }
+                                    tmpValue = currentCompValue;
+                                }
+                            }
+                            if (!explode) {
+                                explodedProps = [{
+                                            prop : prop,
+                                            currentValueNum : currentValueNum,
+                                            currentUnit : currentUnit
+                                        }];
+                            }
+
+                            // convert current unit in final animation unit and push each property animation in a stack
+                            for (var i = 0, l = explodedProps.length; i < l; i++) {
+                                var curValueNum = explodedProps[i].currentValueNum;
+                                if (explodedProps.currentUnit != unit) {
+                                    curValueNum = this.unitUtil.convertFromPixels(unit, explodedProps[i].currentValueNum, elem, explodedProps[i].prop);
+                                }
+                                animInfo.props.push({
+                                    prop : explodedProps[i].prop,
+                                    origin : curValueNum,
+                                    dest : valueNum,
+                                    unit : unit
+                                });
+                            }
+                        }
+                    }
+                }
+                delete animInfo.userProperties;
+
+                // start animation
+                if (animInfo.props.length > 0) {
+                    var id = setInterval(function (that) {
+                        return function () {
+                            that._interpolate.call(that, elem, animInfo);
+                        };
+                    }(this), animInfo.interval);
+                    this.animations[idTiming] = id;
+                } else {
+                    this.$logWarn(this.NO_PROPERTY_TO_ANIMATE);
+                }
+
+                return idTiming;
+            },
+
+            _interpolate : function (elem, animInfo) {
+                var now = (new Date()).getTime(), ended = (now >= animInfo.end);
+
+                for (var i = 0, l = animInfo.props.length; i < l; i++) {
+                    var interpolation, item = animInfo.props[i];
+                    if (ended) {
+                        interpolation = item.dest;
+                    } else {
+                        interpolation = this._computeInterpolation(animInfo.easing, item.origin, item.dest, animInfo.start, animInfo.end, now);
+                    }
+                    this.__setProperty(animInfo.element, item.prop, interpolation, item.unit);
+                }
+
+                if (ended) {
+                    this.$callback(animInfo.onEndAnimation);
+                    clearInterval(this.animations[animInfo.idTiming]);
+                    delete this.animations[animInfo.idTiming];
+                    if (animInfo.queue) {
+                        this.queues[animInfo.queue].list.shift();
+                        // if it is the last animation of its queue
+                        if (this.queues[animInfo.queue].list.length === 0) {
+                            this.$callback(this.queues[animInfo.queue].onEndQueue);
+                            delete this.queues[animInfo.queue];
+                        } else {
+                            var next = this.queues[animInfo.queue].list[0];
+                            this._launchAnimation(elem, next, next.idTiming);
+                        }
+                    }
+                }
+            },
+
+            __getUnit : function (value, prop) {
+                // /(em|%|px|ex|cm|mm|in|pt|pc)$/
+                var unitRegExp = new RegExp("(" + this.cfg.UNITS.join("|") + ")$");
+                var unit = aria.utils.String.trim(value).toLowerCase().match(unitRegExp);
+                if (prop == "opacity" || prop == "scrollTop" || prop == "scrollLeft") {
+                    return null;
+                } else
+                    return unit ? unit[0] : "px";
+            },
+
+            __getQueueKey : function (name) {
+                return "_" + name;
+            },
+
+            __getProperty : function (elem, prop) {
+                var value;
+                if (this.cfg.PROPERTIES[prop] && !this.cfg.PROPERTIES[prop].notStyleProperty) {
+                    value = aria.utils.Dom.getStyle(elem, prop);
+                } else {
+                    value = elem[prop];
+                }
+                return (value == null) ? "" : value.toString();
+            },
+
+            __setProperty : function (elem, prop, value, unit) {
+                var browser = aria.core.Browser;
+                if (this.cfg.PROPERTIES[prop] && !this.cfg.PROPERTIES[prop].notStyleProperty) {
+                    if (prop == "opacity" && (browser.isIE6 || browser.isIE7 || browser.isIE8)) {
+                        elem.style["filter"] = "alpha(opacity = " + value * 100 + ")";
+                    } else {
+                        elem.style[prop] = value + unit;
+                    }
+                } else {
+                    elem[prop] = value;
+                }
+            }
+
+        }
+    });
+})();

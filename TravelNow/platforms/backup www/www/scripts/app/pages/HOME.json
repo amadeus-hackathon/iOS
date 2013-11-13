@@ -1,0 +1,9 @@
+{
+    contents : { },
+    pageComposition : {
+        template : "app.templates.HomeLayout"
+    },
+    pageId : "HOME",
+    url : "/home",
+    title : "Travel Now | Home"
+}

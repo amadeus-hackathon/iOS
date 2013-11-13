@@ -1,0 +1,75 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+		
+		<script src="js/WebviewPlugin.js"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/thack.css" />
+		<link href="css/_all.css" rel="stylesheet">
+	
+		<script type="text/javascript" src="scripts/aria/ariatemplates-1.4.12.js"></script>
+		<script src="js/modernizr.custom.17475.js"></script>
+		<script src="js/jquery.js"></script>
+		<script src="js/jquery.icheck.min.js"></script>
+		<script type="text/javascript" src="js/iscroll.js"></script>
+		<script src="js/staticdata.js"></script>
+	
+        <title>Travel Now</title>
+		
+		<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+		<!-- cordova -->
+		<script src="cordova.js"></script>
+	    <!-- cordova facebook plugin -->
+		<script src="js/cdv-plugin-fb-connect.js"></script>
+	    <!-- facebook js sdk -->
+		<script src="js/facebook-js-sdk.js"></script>
+				
+    </head>
+    <body>
+		
+		<div id="layout"></div>
+
+		<div id="fb-root"></div>
+
+		<br></br>
+		
+		<script type="text/javascript" src="phonegap.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+		
+        <script type="text/javascript">
+
+			app.initialize();
+
+			aria.core.AppEnvironment.setEnvironment({
+				defaultWidgetLibs : {
+					"aria" : "aria.widgets.AriaLib",
+					"embed" : "aria.embed.EmbedLib"
+				}
+			});
+			
+			var json = {};
+			var pageEngine;
+			
+			Aria.load({
+				classes: ["aria.pageEngine.PageEngine", "aria.pageEngine.pageProviders.BasePageProvider"],
+				oncomplete: function() {
+					pageEngine = new aria.pageEngine.PageEngine();
+					pageEngine.start({
+						pageProvider : new aria.pageEngine.pageProviders.BasePageProvider({
+							siteConfigLocation : "app/site.json",
+							pageBaseLocation : "app/pages/",
+							homePageId : "HOME"
+						})
+					});
+				}
+			});
+
+        </script>
+		
+		<div id="log"></div>
+
+    </body>
+</html>
